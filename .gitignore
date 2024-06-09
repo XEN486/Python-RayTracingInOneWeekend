@@ -1,0 +1,7 @@
+run.bat
+image.ppm
+image.png
+image_rt.ppm
+image_rt.png
+example.jpg
+__pycache__/
