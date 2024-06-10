@@ -307,8 +307,77 @@ def cornell_smoke():
 
     return world, cam
 
+def final_scene(image_width, samples_per_pixel, max_depth):
+    boxes1 = hittable_list()
+    ground = lambertian(color(0.48, 0.83, 0.53))
+
+    boxes_per_side = 20
+    for i in range(boxes_per_side):
+        for j in range(boxes_per_side):
+            w = 100
+            x0 = -1000 + i*w
+            z0 = -1000 + j*w
+            y0 = 0
+            x1 = x0 + w
+            y1 = random_double(1, 101)
+            z1 = z0 + w
+
+            boxes1.add(box(point3(x0,y0,z0), point3(x1,y1,z1), ground))
+
+    world = hittable_list()
+    world.add(bvh_node(boxes1))
+
+    light = diffuse_light(color(7, 7, 7))
+    world.add(quad(point3(123,554,147), vec3(300,0,0), vec3(0,0,265), light))
+
+    center1 = point3(400, 400, 200)
+    center2 = center1 + vec3(30,0,0)
+    sphere_material = lambertian(color(0.7, 0.3, 0.1))
+    world.add(sphere(center1, 50, sphere_material, center2, True))
+
+    world.add(sphere(point3(260, 150, 45), 50, dielectric(1.5)))
+    world.add(sphere(
+        point3(0, 150, 145), 50, metal(color(0.8, 0.8, 0.9), 1.0)
+    ))
+
+    boundary = sphere(point3(360,150,145), 70, dielectric(1.5))
+    world.add(boundary)
+    world.add(constant_medium(boundary, 0.2, color(0.2, 0.4, 0.9)))
+    boundary = sphere(point3(0,0,0), 5000, dielectric(1.5))
+    world.add(constant_medium(boundary, .0001, color(1,1,1)))
+
+    emat = lambertian(image_texture('earthmap.jpg'))
+    world.add(sphere(point3(400,200,400), 100, emat))
+    pertext = noise_texture(0.2)
+    world.add(sphere(point3(220,280,300), 80, lambertian(pertext)))
+
+    boxes2 = hittable_list()
+    white = lambertian(color(.73, .73, .73))
+    ns = 1000
+    for j in range(ns):
+        boxes2.add(sphere(random(0,165), 10, white))
+
+    world.add(translate(rotate_y(bvh_node(boxes2), 15), vec3(-100,270,395)))
+
+    cam = camera()
+
+    cam.aspect_ratio = 1.0
+    cam.image_width = image_width
+    cam.samples_per_pixel = samples_per_pixel
+    cam.max_depth = max_depth
+    cam.background = color(0,0,0)
+
+    cam.vfov = 40
+    cam.lookfrom = point3(478, 278, -600)
+    cam.lookat = point3(278, 278, 0)
+    cam.vup = vec3(0,1,0)
+
+    cam.defocus_angle = 0
+
+    return world, cam
+
 def main():
-    world, cam = cornell_smoke()
+    world, cam = final_scene(400, 250, 4)
 
     print('gooby')
     cam.render(world)
