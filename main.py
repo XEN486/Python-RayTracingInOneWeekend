@@ -4,20 +4,23 @@ import math
 
 from bvh_node import *
 from camera import *
+from constant_medium import *
 from hittable import *
 from hittable_list import *
 from sphere import *
 from material import *
 from quad import *
+from vector import *
 
 def spheres_scene():
     world = hittable_list()
 
-    ground_material = lambertian(color(0.5, 0.5, 0.5))
+    checker = checker_texture(0.32, color(.2, .3, .1), color(.9, .9, .9))
+    ground_material = lambertian(checker) # color(0.5,0.5,0.5)
     world.add(sphere(point3(0, -1000, 0), 1000, ground_material))
 
-    for a in range(-5, 5):
-        for b in range(-5, 5):
+    for a in range(-4, 4):
+        for b in range(-4, 4):
             choose_mat = random_double()
             center = point3(a + 0.9 * random_double(), 0.2, b + 0.9 * random_double())
             if ((center - point3(4, 0.2, 0)).length > 0.9):
@@ -26,8 +29,7 @@ def spheres_scene():
                 if choose_mat < 0.8:
                     albedo = random().mul(random())
                     sphere_material = lambertian(albedo)
-                    center2 = center + vec3(0, random_double(0, .5), 0)
-                    world.add(sphere(center, 0.2, sphere_material, center2, True))
+                    world.add(sphere(center, 0.2, sphere_material))
                 elif choose_mat < 0.95:
                     albedo = random(0.5, 1)
                     fuzz = random_double(0, 0.5)
@@ -46,14 +48,14 @@ def spheres_scene():
             material3 = metal(color(0.7, 0.6, 0.5), 0.0)
             world.add(sphere(point3(4, 1, 0), 1.0, material3))
 
-            #world = hittable_list(bvh_node(world))
+            world = hittable_list(bvh_node(world))
     
     cam = camera()
 
     cam.aspect_ratio = 16.0 / 9.0
-    cam.image_width = 400
-    cam.samples_per_pixel = 10
-    cam.max_depth = 8
+    cam.image_width = 1200
+    cam.samples_per_pixel = 50
+    cam.max_depth = 50
     cam.background = color(0.7, 0.8, 1.0)
 
     cam.vfov = 20
@@ -175,7 +177,7 @@ def quads():
 
     cam.aspect_ratio = 4.0 / 3.0
     cam.image_width = 400
-    cam.samples_per_pixel = 10
+    cam.samples_per_pixel = 1
     cam.max_depth = 8
     cam.background = color(0.7, 0.8, 1.0)
 
@@ -218,26 +220,36 @@ def simple_light():
 
 def cornell_box():
     world = hittable_list()
-
+    
     red = lambertian(color(.65, .05, .05))
     white = lambertian(color(.73, .73, .73))
     green = lambertian(color(.12, .45, .15))
-    light = diffuse_light(color(15, 15, 15))
-
+    #light = diffuse_light(color(15, 15, 15))
+    light = diffuse_light(color(7, 7, 7))
+    
     world.add(quad(point3(555,0,0), vec3(0,555,0), vec3(0,0,555), green))
     world.add(quad(point3(0,0,0), vec3(0,555,0), vec3(0,0,555), red))
-    #world.add(quad(point3(113, 554, 127), vec3(330, 0, 0), vec3(0,0,305), light))
-    world.add(quad(point3(343, 554, 332), vec3(-130, 0, 0), vec3(0,0,-105), light))
+    world.add(quad(point3(113, 554, 127), vec3(330, 0, 0), vec3(0,0,305), light))
+    #world.add(quad(point3(343, 554, 332), vec3(-130, 0, 0), vec3(0,0,-105), light))
     world.add(quad(point3(0,0,0), vec3(555,0,0), vec3(0,0,555), white))
     world.add(quad(point3(555,555,555), vec3(-555, 0, 0), vec3(0,0,-555), white))
     world.add(quad(point3(0,0,555), vec3(555,0,0), vec3(0,555,0), white))
+    
+    box1 = box(point3(0,0,0), point3(165, 330, 165), green)
+    box1 = rotate_y(box1, 15)
+    box1 = translate(box1, vec3(265, 0, 295))
+    world.add(box1)
 
-    world.add(box(point3(130, 0, 65), point3(295, 165, 230), white))
-    world.add(box(point3(265, 0, 295), point3(430, 330, 460), white))
+    box2 = box(point3(0,0,0), point3(165, 165, 165), green)
+    box2 = rotate_y(box2, -18)
+    box2 = translate(box2, vec3(130, 0, 65))
+    world.add(box2)
+
+    world = hittable_list(bvh_node(world))
 
     cam = camera()
     cam.aspect_ratio = 1.0
-    cam.image_width = 400
+    cam.image_width = 200
     cam.samples_per_pixel = 50
     cam.max_depth = 50
     cam.background = color(0,0,0)
@@ -250,10 +262,55 @@ def cornell_box():
     cam.defocus_angle = 0
 
     return world, cam    
-    
-def main():
-    world, cam = cornell_box()
 
+def cornell_smoke():
+    world = hittable_list()
+    
+    red = lambertian(color(.65, .05, .05))
+    white = lambertian(color(.73, .73, .73))
+    green = lambertian(color(.12, .45, .15))
+    light = diffuse_light(color(7, 7, 7))
+
+    world.add(quad(point3(555,0,0), vec3(0,555,0), vec3(0,0,555), green))
+    world.add(quad(point3(0,0,0), vec3(0,555,0), vec3(0,0,555), red))
+    world.add(quad(point3(113,554,127), vec3(330,0,0), vec3(0,0,305), light))
+    world.add(quad(point3(0,555,0), vec3(555,0,0), vec3(0,0,555), white))
+    world.add(quad(point3(0,0,0), vec3(555,0,0), vec3(0,0,555), white))
+    world.add(quad(point3(0,0,555), vec3(555,0,0), vec3(0,555,0), white))
+
+    box1 = box(point3(0,0,0), point3(165,330,165), white)
+    box1 = rotate_y(box1, 15)
+    box1 = translate(box1, vec3(265,0,295))
+
+    box2 = box(point3(0,0,0), point3(165,165,165), white)
+    box2 = rotate_y(box2, -18)
+    box2 = translate(box2, vec3(130,0,65))
+
+    world.add(constant_medium(box1, 0.01, color(0,0,0)))
+    world.add(constant_medium(box2, 0.01, color(1,1,1)))
+
+    world = hittable_list(bvh_node(world))
+
+    cam = camera()
+    cam.aspect_ratio = 1.0
+    cam.image_width = 200
+    cam.samples_per_pixel = 50
+    cam.max_depth = 50
+    cam.background = color(0,0,0)
+
+    cam.vfov = 40
+    cam.lookfrom = point3(278, 278, -800)
+    cam.lookat = point3(278, 278, 0)
+    cam.vup = vec3(0,1,0)
+
+    cam.defocus_angle = 0
+
+    return world, cam
+
+def main():
+    world, cam = cornell_smoke()
+
+    print('gooby')
     cam.render(world)
     #Image.open('image.ppm').show()
 

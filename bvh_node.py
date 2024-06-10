@@ -1,84 +1,81 @@
 from rtweekend import *
-
 from aabb import *
 from hittable import *
 from hittable_list import *
 from interval import *
 from vector import *
+import random
 
 class bvh_node(hittable):
-    # the first parameter's type decides what params to use
     def __init__(self, obj_or_list, start=None, end=None):
-        self.bounding_box = empty_a
         self.left = None
         self.right = None
 
-        objects = obj_or_list
-        if type(obj_or_list) == hittable_list:
-            start = 0
-            end = len(obj_or_list.objects)
+        if isinstance(obj_or_list, hittable_list):
             objects = obj_or_list.objects
-
-        for object_index in range(start, end):
-            self.bounding_box = aabb(self.bounding_box, objects[object_index].bounding_box)
-        
-        axis = self.bounding_box.longest_axis()
-        
-        if axis == 0:
-            comparator = self.box_x_compare
-        elif axis == 1:
-            comparator = self.box_y_compare
+            start = 0
+            end = len(objects)
         else:
-            comparator = self.box_z_compare
+            objects = obj_or_list
 
-        object_span = end - start
+        if start is None or end is None:
+            raise ValueError("Start and end indices must be provided.")
 
-        if object_span == 1:
-            self.left = self.right = objects[start]
-        elif object_span == 2:
-            self.left = objects[start]
-            self.right = objects[start + 1]
+        # Sort objects along a random axis
+        axis = random.randint(0, 2)
+        objects[start:end] = sorted(objects[start:end], key=lambda obj: obj.bounding_box.min()[axis])
+
+        mid = start + (end - start) // 2
+        self.left = objects[start:mid]
+        self.right = objects[mid:end]
+
+        if len(self.left) == 1:
+            self.left = self.left[0]
         else:
-            objects[start:end] = sorted(objects[start:end], key=lambda obj: self.get_sort_key(obj, axis))
+            self.left = bvh_node(self.left, 0, len(self.left))
 
-            mid = start + (end - start) // 2
-            self.left = bvh_node(objects, start, mid)
-            self.right = bvh_node(objects, mid, end)
+        if len(self.right) == 1:
+            self.right = self.right[0]
+        else:
+            self.right = bvh_node(self.right, 0, len(self.right))
 
-        #self.bounding_box = aabb(self.left.bounding_box, self.right.bounding_box)
+        box_left = self.left.bounding_box
+        box_right = self.right.bounding_box
+
+        if box_left is None or box_right is None:
+            raise ValueError("No bounding box in bvh_node constructor.")
+
+        self.bounding_box = self.surrounding_box(box_left, box_right)
 
     def hit(self, r, ray_t, rec):
         if not self.bounding_box.hit(r, ray_t):
             return False, rec
 
-        hit_left, rec = self.left.hit(r, ray_t, rec)
-        hit_right = False
+        hit_left, rec_left = self.left.hit(r, ray_t, rec)
+        hit_right, rec_right = self.right.hit(r, ray_t, rec)
 
-        if self.right:
-            right_t = interval(ray_t.min, rec.t if hit_left else ray_t.max)
-            hit_right, rec = self.right.hit(r, right_t, rec)
-
-        return hit_left or hit_right, rec
-
-    @staticmethod
-    def box_compare(a, b, axis_index):
-        a_axis_interval = a.bounding_box.axis_interval(axis_index)
-        b_axis_interval = b.bounding_box.axis_interval(axis_index)
-        return a_axis_interval.min < b_axis_interval.min
-
-    @staticmethod
-    def box_x_compare(a, b):
-        return bvh_node.box_compare(a,b,0)
+        if hit_left and hit_right:
+            if rec_left.t < rec_right.t:
+                return True, rec_left
+            else:
+                return True, rec_right
+        elif hit_left:
+            return True, rec_left
+        elif hit_right:
+            return True, rec_right
+        else:
+            return False, rec
 
     @staticmethod
-    def box_y_compare(a, b):
-        return bvh_node.box_compare(a,b,1)
-
-    @staticmethod
-    def box_z_compare(a, b):
-        return bvh_node.box_compare(a,b,2)
-
-    @staticmethod
-    def get_sort_key(obj, axis_index):
-        return obj.bounding_box.axis_interval(axis_index).min
-        
+    def surrounding_box(box0, box1):
+        small = point3(
+            min(box0.x.min, box1.x.min),
+            min(box0.y.min, box1.y.min),
+            min(box0.z.min, box1.z.min)
+        )
+        large = point3(
+            max(box0.x.max, box1.x.max),
+            max(box0.y.max, box1.y.max),
+            max(box0.z.max, box1.z.max)
+        )
+        return aabb(small, large)

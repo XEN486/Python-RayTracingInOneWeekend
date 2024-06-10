@@ -77,3 +77,15 @@ class diffuse_light(material):
 
     def emitted(self, u, v, p):
         return self.tex.value(u, v, p)
+
+class isotropic(material):
+    def __init__(self, tex):
+        if isinstance(tex, color):
+            self.tex = solid_color(tex)
+        else:
+            self.tex = tex
+
+    def scatter(self, r_in, rec, attenuation, scattered):
+        scattered = ray(rec.p, random_unit_vector(), r_in.time)
+        attenuation = self.tex.value(rec.u, rec.v, rec.p)
+        return True, rec, attenuation, scattered

@@ -32,3 +32,6 @@ class interval:
 
 empty_i = interval(infinity, -infinity)
 universe_i = interval(-infinity, infinity)
+
+def add_i(ival, displacement):
+    return interval(ival.min + displacement, ival.max + displacement)
